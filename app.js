@@ -603,7 +603,10 @@ function downloadPDF() {
   doc.setFont('helvetica', 'italic');
   doc.text(garantia, PAGE_W / 2, footerY + 3, { align: 'center' });
 
-  doc.save('cotizacion.pdf');
+  const [anio, mes, dia] = fecha.split('-');
+  const fechaFmt    = `${dia}-${mes}-${anio}`;
+  const clienteSafe = cliente.replace(/[/\\:*?"<>|]/g, '').replace(/\s+/g, '_');
+  doc.save(`cotizacion_${clienteSafe}_${fechaFmt}.pdf`);
   showToast('PDF descargado correctamente.', 'info');
 }
 
