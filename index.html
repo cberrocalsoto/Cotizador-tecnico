@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotizador Técnico — Servicio Eléctrico</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a56db">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Cotizador">
+  <link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+
+  <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">Cotizador Técnico</span>
+      </div>
+      <nav class="nav">
+        <button id="btn-cotizacion" class="nav-btn active" onclick="showView('cotizacion')">Nueva Cotización</button>
+        <button id="btn-mantenedor" class="nav-btn" onclick="showView('mantenedor')">Mantenedor de Ítems</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- ══════════════════ VISTA: COTIZACIÓN ══════════════════ -->
+    <section id="view-cotizacion" class="view active">
+
+      <div class="view-header">
+        <h2>Nueva Cotización</h2>
+        <button class="btn btn-secondary" onclick="newQuote()">Limpiar / Nueva</button>
+      </div>
+
+      <!-- Datos del encabezado -->
+      <div class="card">
+        <div class="meta-grid">
+          <div class="form-group">
+            <label for="quote-date">Fecha</label>
+            <input type="date" id="quote-date" class="input">
+          </div>
+          <div class="form-group">
+            <label for="cliente-nombre">Cliente <span class="required">*</span></label>
+            <input type="text" id="cliente-nombre" class="input" placeholder="Nombre del cliente">
+          </div>
+        </div>
+      </div>
+
+      <!-- Ítems de la cotización -->
+      <div class="card">
+        <h3 class="card-title">Ítems de la cotización</h3>
+
+        <!-- Selector del catálogo -->
+        <div class="add-item-row">
+          <select id="item-selector" class="input select-item">
+            <option value="">— Selecciona un ítem del catálogo —</option>
+          </select>
+          <div class="form-group">
+            <label for="item-qty">Cant.</label>
+            <input type="number" id="item-qty" class="input input-qty-selector" value="1" min="1">
+          </div>
+          <button class="btn btn-primary" onclick="addItemToQuote()">Agregar</button>
+        </div>
+
+        <!-- Ítem personalizado (ad-hoc) -->
+        <div class="adhoc-section">
+          <button id="btn-show-adhoc" class="btn btn-outline" onclick="showAdHocForm()">+ Ítem personalizado</button>
+          <div id="adhoc-form" class="adhoc-form" style="display:none">
+            <input type="text" id="adhoc-nombre" class="input adhoc-nombre" placeholder="Descripción del ítem">
+            <input type="number" id="adhoc-precio" class="input adhoc-precio" placeholder="Precio CLP">
+            <div class="adhoc-actions">
+              <button class="btn btn-primary" onclick="addAdHocItem()">Agregar</button>
+              <button class="btn btn-secondary" onclick="hideAdHocForm()">Cancelar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabla de ítems -->
+        <div class="table-wrap">
+          <table class="quote-table">
+            <thead>
+              <tr>
+                <th class="col-num">#</th>
+                <th>Descripción</th>
+                <th class="col-qty">Cant.</th>
+                <th class="col-price">P. Unit.</th>
+                <th class="col-price">Subtotal</th>
+                <th class="col-action"></th>
+              </tr>
+            </thead>
+            <tbody id="quote-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Servicios adicionales -->
+      <div class="card">
+        <h3 class="card-title">Servicios adicionales</h3>
+        <div class="services-list">
+          <div class="service-row">
+            <input type="checkbox" id="check-retiro" onchange="updateTotals()">
+            <label for="check-retiro" class="service-label">Retiro a domicilio</label>
+            <input type="number" id="precio-retiro" class="input input-price-sm" value="5000" onchange="updateTotals()">
+          </div>
+          <div class="service-row">
+            <input type="checkbox" id="check-despacho" onchange="updateTotals()">
+            <label for="check-despacho" class="service-label">Despacho / entrega</label>
+            <input type="number" id="precio-despacho" class="input input-price-sm" value="5000" onchange="updateTotals()">
+          </div>
+          <div class="service-row service-row-descuento">
+            <input type="checkbox" id="check-descuento" onchange="updateTotals()">
+            <label for="check-descuento" class="service-label">Descuento</label>
+            <input type="number" id="precio-descuento" class="input input-price-sm" value="0" min="0" onchange="updateTotals()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Totales -->
+      <div class="card totals-card">
+        <div class="totals-grid">
+          <span class="totals-label">Subtotal ítems:</span>
+          <span class="totals-value" id="subtotal-display">$0</span>
+          <span class="totals-label">Retiro a domicilio:</span>
+          <span class="totals-value" id="retiro-display">—</span>
+          <span class="totals-label">Despacho / entrega:</span>
+          <span class="totals-value" id="despacho-display">—</span>
+          <span class="totals-label descuento-label">Descuento:</span>
+          <span class="totals-value descuento-value" id="descuento-display">—</span>
+          <span class="totals-label total-label">TOTAL:</span>
+          <span class="totals-value total-value" id="total-display">$0</span>
+        </div>
+      </div>
+
+      <!-- Observaciones -->
+      <div class="card">
+        <h3 class="card-title">Observaciones</h3>
+        <textarea id="quote-observaciones" class="input textarea" placeholder="Notas adicionales, condiciones, garantía... (opcional)" rows="3"></textarea>
+      </div>
+
+      <!-- Exportar -->
+      <div class="card">
+        <h3 class="card-title">Exportar cotización</h3>
+        <div class="export-row">
+          <button class="btn btn-danger btn-lg" onclick="downloadPDF()">📄 Descargar PDF</button>
+          <div class="wa-group">
+            <input type="tel" id="wa-phone" class="input wa-phone" placeholder="+56912345678" value="+56">
+            <button class="btn btn-whatsapp btn-lg" onclick="sendWhatsApp()">💬 Enviar por WhatsApp</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════ VISTA: MANTENEDOR ══════════════════ -->
+    <section id="view-mantenedor" class="view">
+
+      <div class="view-header">
+        <h2>Mantenedor de Ítems</h2>
+        <div class="import-export-row">
+          <button class="btn btn-secondary btn-sm" onclick="exportItems()">⬇ Exportar</button>
+          <label class="btn btn-secondary btn-sm" for="import-file">⬆ Importar</label>
+          <input type="file" id="import-file" accept=".json" style="display:none" onchange="importItems(event)">
+        </div>
+      </div>
+
+      <!-- Formulario de nuevo ítem -->
+      <div class="card">
+        <h3 class="card-title">Nuevo Ítem</h3>
+        <div class="new-item-form">
+          <input type="text" id="new-item-nombre" class="input new-item-nombre" placeholder="Nombre del servicio / reparación">
+          <input type="number" id="new-item-precio" class="input new-item-precio" placeholder="Precio (CLP)">
+          <button class="btn btn-primary" onclick="addItemFromManager()">Guardar Ítem</button>
+        </div>
+      </div>
+
+      <!-- Lista de ítems registrados -->
+      <div class="card">
+        <h3 class="card-title">Ítems registrados</h3>
+        <div id="items-list"></div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>
