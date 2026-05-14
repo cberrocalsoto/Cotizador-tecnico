@@ -25,6 +25,7 @@
       <nav class="nav">
         <button id="btn-cotizacion" class="nav-btn active" onclick="showView('cotizacion')">Nueva Cotización</button>
         <button id="btn-mantenedor" class="nav-btn" onclick="showView('mantenedor')">Mantenedor de Ítems</button>
+        <button id="btn-config" class="nav-btn" onclick="showView('config')">Mi Empresa</button>
       </nav>
     </div>
   </header>
@@ -184,6 +185,83 @@
       <div class="card">
         <h3 class="card-title">Ítems registrados</h3>
         <div id="items-list"></div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════ VISTA: MI EMPRESA ══════════════════ -->
+    <section id="view-config" class="view">
+
+      <div class="view-header">
+        <h2>Mi Empresa</h2>
+      </div>
+
+      <!-- Logo -->
+      <div class="card">
+        <h3 class="card-title">Logotipo</h3>
+        <div class="logo-upload-area">
+          <div id="logo-preview-wrap" class="logo-preview-wrap" style="display:none">
+            <img id="logo-preview" class="logo-preview" src="" alt="Logo empresa">
+            <button class="btn btn-secondary btn-sm" onclick="removeLogo()">Quitar</button>
+          </div>
+          <label id="logo-upload-label" class="logo-upload-btn" for="logo-file">📁 Subir logotipo</label>
+          <input type="file" id="logo-file" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+        </div>
+        <p class="config-hint">JPG o PNG recomendado. Se mostrará en el encabezado del PDF.</p>
+      </div>
+
+      <!-- Datos empresa -->
+      <div class="card">
+        <h3 class="card-title">Datos de la Empresa</h3>
+        <div class="config-grid">
+          <div class="form-group">
+            <label for="emp-nombre">Nombre de la empresa</label>
+            <input type="text" id="emp-nombre" class="input" placeholder="Ej: Electro Service SpA">
+          </div>
+          <div class="form-group">
+            <label for="emp-rut">RUT</label>
+            <input type="text" id="emp-rut" class="input" placeholder="Ej: 12.345.678-9">
+          </div>
+          <div class="form-group">
+            <label for="emp-direccion">Dirección</label>
+            <input type="text" id="emp-direccion" class="input" placeholder="Calle, ciudad">
+          </div>
+          <div class="form-group">
+            <label for="emp-telefono">Teléfono</label>
+            <input type="tel" id="emp-telefono" class="input" placeholder="+56 9 1234 5678">
+          </div>
+          <div class="form-group">
+            <label for="emp-email">Email</label>
+            <input type="email" id="emp-email" class="input" placeholder="contacto@empresa.cl">
+          </div>
+        </div>
+      </div>
+
+      <!-- Redes sociales -->
+      <div class="card">
+        <h3 class="card-title">Redes Sociales</h3>
+        <div class="config-grid">
+          <div class="form-group">
+            <label for="emp-instagram">Instagram</label>
+            <input type="text" id="emp-instagram" class="input" placeholder="@usuario">
+          </div>
+          <div class="form-group">
+            <label for="emp-facebook">Facebook</label>
+            <input type="text" id="emp-facebook" class="input" placeholder="nombre de la página">
+          </div>
+        </div>
+      </div>
+
+      <!-- Condiciones de garantía -->
+      <div class="card">
+        <h3 class="card-title">Condiciones de Garantía</h3>
+        <textarea id="emp-garantia" class="input textarea" rows="3"
+          placeholder="Texto que aparecerá al pie del PDF..."></textarea>
+        <p class="config-hint">Si se deja vacío se usará: "Cotización válida por 30 días desde la fecha de emisión."</p>
+      </div>
+
+      <div style="padding-bottom: 8px">
+        <button class="btn btn-primary btn-lg" onclick="saveEmpresaConfig()">Guardar configuración</button>
       </div>
 
     </section>

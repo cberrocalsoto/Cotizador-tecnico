@@ -2,7 +2,8 @@
    Constantes y datos iniciales
 ═══════════════════════════════════════════════════ */
 const ITEMS_KEY  = 'cotizador_items';
-const CONFIG_KEY = 'cotizador_config';
+const CONFIG_KEY  = 'cotizador_config';
+const EMPRESA_KEY = 'cotizador_empresa';
 
 const SEED_ITEMS = [
   { nombre: 'Cambio de pantalla hasta 32"',  precio: 28000 },
@@ -22,6 +23,7 @@ const SEED_ITEMS = [
 ═══════════════════════════════════════════════════ */
 let items      = [];
 let config     = { precio_retiro: 5000, precio_despacho: 5000, ultimo_numero_cotizacion: 0 };
+let empresa    = { nombre: '', rut: '', direccion: '', telefono: '', email: '', instagram: '', facebook: '', logo: null, logoRatio: 1, garantia: '' };
 let quoteItems = [];
 let toastTimer;
 
@@ -40,15 +42,18 @@ function loadStorage() {
   try {
     const si = localStorage.getItem(ITEMS_KEY);
     const sc = localStorage.getItem(CONFIG_KEY);
+    const se = localStorage.getItem(EMPRESA_KEY);
     items  = si ? JSON.parse(si) : [];
-    if (sc) Object.assign(config, JSON.parse(sc));
+    if (sc) Object.assign(config,  JSON.parse(sc));
+    if (se) Object.assign(empresa, JSON.parse(se));
   } catch (e) {
     console.error('Error al leer localStorage:', e);
   }
 }
 
-function saveItems()  { localStorage.setItem(ITEMS_KEY,  JSON.stringify(items));  }
-function saveConfig() { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); }
+function saveItems()   { localStorage.setItem(ITEMS_KEY,   JSON.stringify(items));   }
+function saveConfig()  { localStorage.setItem(CONFIG_KEY,  JSON.stringify(config));  }
+function saveEmpresa() { localStorage.setItem(EMPRESA_KEY, JSON.stringify(empresa)); }
 
 function seedItems() {
   items = SEED_ITEMS.map(s => ({ id: uid(), ...s }));
@@ -69,6 +74,7 @@ function showView(name) {
   document.getElementById('btn-' + name).classList.add('active');
   if (name === 'mantenedor') renderItemsManager();
   if (name === 'cotizacion') refreshItemSelector();
+  if (name === 'config')     populateEmpresaForm();
 }
 
 /* ═══════════════════════════════════════════════════
@@ -391,6 +397,76 @@ function importItems(event) {
 }
 
 /* ═══════════════════════════════════════════════════
+   Configuración de empresa
+═══════════════════════════════════════════════════ */
+function saveEmpresaConfig() {
+  empresa.nombre    = document.getElementById('emp-nombre').value.trim();
+  empresa.rut       = document.getElementById('emp-rut').value.trim();
+  empresa.direccion = document.getElementById('emp-direccion').value.trim();
+  empresa.telefono  = document.getElementById('emp-telefono').value.trim();
+  empresa.email     = document.getElementById('emp-email').value.trim();
+  empresa.instagram = document.getElementById('emp-instagram').value.trim();
+  empresa.facebook  = document.getElementById('emp-facebook').value.trim();
+  empresa.garantia  = document.getElementById('emp-garantia').value.trim();
+  saveEmpresa();
+  showToast('Configuración guardada.', 'info');
+}
+
+function populateEmpresaForm() {
+  document.getElementById('emp-nombre').value    = empresa.nombre    || '';
+  document.getElementById('emp-rut').value       = empresa.rut       || '';
+  document.getElementById('emp-direccion').value = empresa.direccion || '';
+  document.getElementById('emp-telefono').value  = empresa.telefono  || '';
+  document.getElementById('emp-email').value     = empresa.email     || '';
+  document.getElementById('emp-instagram').value = empresa.instagram || '';
+  document.getElementById('emp-facebook').value  = empresa.facebook  || '';
+  document.getElementById('emp-garantia').value  = empresa.garantia  || '';
+
+  const hasLogo = !!empresa.logo;
+  document.getElementById('logo-preview-wrap').style.display = hasLogo ? 'flex'        : 'none';
+  document.getElementById('logo-upload-label').style.display = hasLogo ? 'none'        : 'inline-flex';
+  if (hasLogo) document.getElementById('logo-preview').src   = empresa.logo;
+}
+
+function handleLogoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX_W = 600, MAX_H = 300;
+      let w = img.naturalWidth || 400, h = img.naturalHeight || 200;
+      if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+      if (h > MAX_H) { w = Math.round(w * MAX_H / h); h = MAX_H; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const data = canvas.toDataURL('image/jpeg', 0.85);
+      empresa.logo      = data;
+      empresa.logoRatio = w / h;
+      saveEmpresa();
+      document.getElementById('logo-preview').src            = data;
+      document.getElementById('logo-preview-wrap').style.display = 'flex';
+      document.getElementById('logo-upload-label').style.display = 'none';
+      showToast('Logo cargado correctamente.', 'info');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function removeLogo() {
+  empresa.logo = null; empresa.logoRatio = 1;
+  saveEmpresa();
+  document.getElementById('logo-preview').src            = '';
+  document.getElementById('logo-preview-wrap').style.display = 'none';
+  document.getElementById('logo-upload-label').style.display = 'inline-flex';
+  showToast('Logo eliminado.', 'info');
+}
+
+/* ═══════════════════════════════════════════════════
    Exportar PDF
 ═══════════════════════════════════════════════════ */
 function downloadPDF() {
@@ -399,10 +475,13 @@ function downloadPDF() {
   if (!quoteItems.length){ showToast('Agrega al menos un ítem a la cotización.', 'error'); return; }
 
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
+  const doc    = new jsPDF();
+  const PAGE_W = doc.internal.pageSize.width;
+  const PAGE_H = doc.internal.pageSize.height;
+  const ML = 14, MR = 14;
 
-  const fecha      = document.getElementById('quote-date').value;
-  const obs        = document.getElementById('quote-observaciones').value.trim();
+  const fecha       = document.getElementById('quote-date').value;
+  const obs         = document.getElementById('quote-observaciones').value.trim();
   const retiroOn    = document.getElementById('check-retiro').checked;
   const despachoOn  = document.getElementById('check-despacho').checked;
   const descuentoOn = document.getElementById('check-descuento').checked;
@@ -412,84 +491,119 @@ function downloadPDF() {
   const subtotal    = quoteItems.reduce((s, qi) => s + qi.precio * qi.cantidad, 0);
   const total       = Math.max(0, subtotal + (retiroOn ? pRetiro : 0) + (despachoOn ? pDespacho : 0) - (descuentoOn ? pDescuento : 0));
 
-  /* ── Encabezado ── */
-  doc.setFontSize(20);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(26, 86, 219);
-  doc.text('COTIZACIÓN DE SERVICIO TÉCNICO', 105, 18, { align: 'center' });
+  let y = 14;
 
-  doc.setDrawColor(26, 86, 219);
-  doc.setLineWidth(0.5);
-  doc.line(14, 22, 196, 22);
+  /* ── Encabezado empresa ── */
+  const tieneEmpresa = empresa.nombre || empresa.logo;
+  if (tieneEmpresa) {
+    const LOGO_MAX_W = 45, LOGO_MAX_H = 22;
+    let logoW = 0, logoH = 0;
 
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(50, 50, 50);
-  doc.text(`Fecha: ${fmtDate(fecha)}`, 14, 30);
-  doc.text(`Cliente: ${cliente}`,      14, 37);
+    if (empresa.logo) {
+      const ratio = empresa.logoRatio || 2;
+      if (ratio >= LOGO_MAX_W / LOGO_MAX_H) { logoW = LOGO_MAX_W; logoH = LOGO_MAX_W / ratio; }
+      else                                   { logoH = LOGO_MAX_H; logoW = LOGO_MAX_H * ratio; }
+      try { doc.addImage(empresa.logo, 'JPEG', ML, y, logoW, logoH); } catch (_) { logoW = 0; }
+    }
+
+    const textX = logoW ? ML + logoW + 6 : ML;
+    let   textY = y + 5;
+
+    if (empresa.nombre) {
+      doc.setFontSize(13); doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 86, 219);
+      doc.text(empresa.nombre, textX, textY); textY += 6;
+    }
+    doc.setFontSize(8.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(70, 70, 70);
+    if (empresa.rut)       { doc.text(`RUT: ${empresa.rut}`, textX, textY); textY += 4.5; }
+    if (empresa.direccion) { doc.text(empresa.direccion,      textX, textY); textY += 4.5; }
+    const contact = [empresa.telefono, empresa.email].filter(Boolean).join('   ');
+    if (contact)           { doc.text(contact, textX, textY); textY += 4.5; }
+
+    y = Math.max(y + (logoH || 0) + 4, textY + 2);
+    doc.setDrawColor(26, 86, 219); doc.setLineWidth(0.4);
+    doc.line(ML, y, PAGE_W - MR, y); y += 8;
+  }
+
+  /* ── Título ── */
+  doc.setFontSize(tieneEmpresa ? 14 : 20);
+  doc.setFont('helvetica', 'bold'); doc.setTextColor(26, 86, 219);
+  doc.text('COTIZACIÓN DE SERVICIO TÉCNICO', PAGE_W / 2, y, { align: 'center' });
+  if (!tieneEmpresa) {
+    doc.setDrawColor(26, 86, 219); doc.setLineWidth(0.5);
+    doc.line(ML, y + 4, PAGE_W - MR, y + 4); y += 4;
+  }
+  y += 10;
+
+  /* ── Fecha y cliente ── */
+  doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50);
+  doc.text(`Fecha: ${fmtDate(fecha)}`, ML, y);
+  doc.text(`Cliente: ${cliente}`,      ML, y + 7);
+  y += 18;
 
   /* ── Tabla de ítems ── */
   const tableBody = quoteItems.map((qi, i) => [
-    i + 1,
-    qi.nombre,
-    qi.cantidad,
-    fmtCLP(qi.precio),
-    fmtCLP(qi.precio * qi.cantidad),
+    i + 1, qi.nombre, qi.cantidad, fmtCLP(qi.precio), fmtCLP(qi.precio * qi.cantidad),
   ]);
-
-  if (retiroOn)    tableBody.push(['', 'Retiro a domicilio', 1, fmtCLP(pRetiro),            fmtCLP(pRetiro)]);
-  if (despachoOn)  tableBody.push(['', 'Despacho / entrega', 1, fmtCLP(pDespacho),          fmtCLP(pDespacho)]);
-  if (descuentoOn) tableBody.push(['', 'Descuento',           1, `-${fmtCLP(pDescuento)}`,  `-${fmtCLP(pDescuento)}`]);
+  if (retiroOn)    tableBody.push(['', 'Retiro a domicilio', 1, fmtCLP(pRetiro),          fmtCLP(pRetiro)]);
+  if (despachoOn)  tableBody.push(['', 'Despacho / entrega', 1, fmtCLP(pDespacho),        fmtCLP(pDespacho)]);
+  if (descuentoOn) tableBody.push(['', 'Descuento',          1, `-${fmtCLP(pDescuento)}`, `-${fmtCLP(pDescuento)}`]);
 
   doc.autoTable({
-    startY: 45,
+    startY: y,
     head: [['#', 'Descripción', 'Cant.', 'P. Unitario', 'Subtotal']],
     body: tableBody,
     styles: { fontSize: 9, cellPadding: 3.5 },
     headStyles: { fillColor: [26, 86, 219], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [240, 246, 255] },
     columnStyles: {
-      0: { cellWidth: 10,  halign: 'center' },
-      2: { cellWidth: 16,  halign: 'center' },
-      3: { cellWidth: 34,  halign: 'right'  },
-      4: { cellWidth: 34,  halign: 'right'  },
+      0: { cellWidth: 10, halign: 'center' },
+      2: { cellWidth: 16, halign: 'center' },
+      3: { cellWidth: 34, halign: 'right'  },
+      4: { cellWidth: 34, halign: 'right'  },
     },
+    margin: { left: ML, right: MR },
   });
 
-  let y = doc.lastAutoTable.finalY + 6;
+  y = doc.lastAutoTable.finalY + 6;
 
   /* ── Bloque de total ── */
   doc.setFillColor(26, 86, 219);
   doc.rect(128, y, 68, 11, 'F');
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
-  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(255, 255, 255);
   doc.text('TOTAL:', 132, y + 7.5);
-  doc.text(fmtCLP(total), 194, y + 7.5, { align: 'right' });
+  doc.text(fmtCLP(total), PAGE_W - MR - 4, y + 7.5, { align: 'right' });
 
   /* ── Observaciones ── */
   if (obs) {
     y += 18;
-    doc.setTextColor(40, 40, 40);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Observaciones:', 14, y);
+    doc.setTextColor(40, 40, 40); doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold'); doc.text('Observaciones:', ML, y);
     doc.setFont('helvetica', 'normal');
-    const lineas = doc.splitTextToSize(obs, 174);
-    doc.text(lineas, 14, y + 6);
+    doc.text(doc.splitTextToSize(obs, PAGE_W - ML - MR), ML, y + 6);
   }
 
   /* ── Pie de página ── */
-  const pageH = doc.internal.pageSize.height;
-  doc.setFontSize(7.5);
-  doc.setTextColor(160, 160, 160);
-  doc.setFont('helvetica', 'italic');
-  doc.text(
-    'Cotización válida por 30 días desde la fecha de emisión. Generada automáticamente.',
-    105, pageH - 8, { align: 'center' }
-  );
+  const footerY = PAGE_H - 14;
+  doc.setDrawColor(200, 200, 200); doc.setLineWidth(0.3);
+  doc.line(ML, footerY - 6, PAGE_W - MR, footerY - 6);
 
-  doc.save(`cotizacion.pdf`);
+  const footerParts = [
+    empresa.telefono  ? `Tel: ${empresa.telefono}` : null,
+    empresa.email     || null,
+    empresa.instagram ? `IG: ${empresa.instagram}` : null,
+    empresa.facebook  ? `FB: ${empresa.facebook}`  : null,
+  ].filter(Boolean);
+
+  const garantia = empresa.garantia ||
+    'Cotización válida por 30 días desde la fecha de emisión. Generada automáticamente.';
+
+  doc.setFontSize(7.5); doc.setTextColor(140, 140, 140); doc.setFont('helvetica', 'normal');
+  if (footerParts.length)
+    doc.text(footerParts.join('  |  '), PAGE_W / 2, footerY - 2, { align: 'center' });
+  doc.setFont('helvetica', 'italic');
+  doc.text(garantia, PAGE_W / 2, footerY + 3, { align: 'center' });
+
+  doc.save('cotizacion.pdf');
   showToast('PDF descargado correctamente.', 'info');
 }
 
