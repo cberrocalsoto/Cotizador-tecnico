@@ -1,9 +1,14 @@
 /* ═══════════════════════════════════════════════════
    Constantes y datos iniciales
 ═══════════════════════════════════════════════════ */
-const ITEMS_KEY  = 'cotizador_items';
-const CONFIG_KEY  = 'cotizador_config';
-const EMPRESA_KEY = 'cotizador_empresa';
+const ITEMS_KEY    = 'cotizador_items';
+const CONFIG_KEY   = 'cotizador_config';
+const EMPRESA_KEY  = 'cotizador_empresa';
+const MARCAS_KEY   = 'cotizador_marcas';
+const PULGADAS_KEY = 'cotizador_pulgadas';
+
+const SEED_MARCAS   = ['AOC', 'Samsung', 'LG', 'Sony', 'Hisense', 'TCL', 'Philips'];
+const SEED_PULGADAS = ['24"', '27"', '32"', '40"', '43"', '50"', '55"', '65"', '75"'];
 
 const SEED_ITEMS = [
   { nombre: 'Cambio de pantalla hasta 32"',  precio: 28000 },
@@ -25,6 +30,8 @@ let items      = [];
 let config     = { precio_retiro: 5000, precio_despacho: 5000, ultimo_numero_cotizacion: 0 };
 let empresa    = { nombre: '', rut: '', direccion: '', telefono: '', email: '', instagram: '', facebook: '', logo: null, logoRatio: 1, garantia: '' };
 let quoteItems = [];
+let marcas     = [];
+let pulgadas   = [];
 let toastTimer;
 
 /* ═══════════════════════════════════════════════════
@@ -32,10 +39,14 @@ let toastTimer;
 ═══════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   loadStorage();
-  if (items.length === 0) seedItems();
+  if (items.length    === 0) seedItems();
+  if (marcas.length   === 0) seedMarcas();
+  if (pulgadas.length === 0) seedPulgadas();
   initQuote();
   renderItemsManager();
   refreshItemSelector();
+  refreshMarcasSelector();
+  refreshPulgadasSelector();
 });
 
 function loadStorage() {
@@ -43,21 +54,37 @@ function loadStorage() {
     const si = localStorage.getItem(ITEMS_KEY);
     const sc = localStorage.getItem(CONFIG_KEY);
     const se = localStorage.getItem(EMPRESA_KEY);
-    items  = si ? JSON.parse(si) : [];
+    const sm = localStorage.getItem(MARCAS_KEY);
+    const sp = localStorage.getItem(PULGADAS_KEY);
+    items    = si ? JSON.parse(si) : [];
     if (sc) Object.assign(config,  JSON.parse(sc));
     if (se) Object.assign(empresa, JSON.parse(se));
+    marcas   = sm ? JSON.parse(sm) : [];
+    pulgadas = sp ? JSON.parse(sp) : [];
   } catch (e) {
     console.error('Error al leer localStorage:', e);
   }
 }
 
-function saveItems()   { localStorage.setItem(ITEMS_KEY,   JSON.stringify(items));   }
-function saveConfig()  { localStorage.setItem(CONFIG_KEY,  JSON.stringify(config));  }
-function saveEmpresa() { localStorage.setItem(EMPRESA_KEY, JSON.stringify(empresa)); }
+function saveItems()    { localStorage.setItem(ITEMS_KEY,    JSON.stringify(items));    }
+function saveConfig()   { localStorage.setItem(CONFIG_KEY,   JSON.stringify(config));   }
+function saveEmpresa()  { localStorage.setItem(EMPRESA_KEY,  JSON.stringify(empresa));  }
+function saveMarcas()   { localStorage.setItem(MARCAS_KEY,   JSON.stringify(marcas));   }
+function savePulgadas() { localStorage.setItem(PULGADAS_KEY, JSON.stringify(pulgadas)); }
 
 function seedItems() {
   items = SEED_ITEMS.map(s => ({ id: uid(), ...s }));
   saveItems();
+}
+
+function seedMarcas() {
+  marcas = SEED_MARCAS.map(n => ({ id: uid(), nombre: n }));
+  saveMarcas();
+}
+
+function seedPulgadas() {
+  pulgadas = SEED_PULGADAS.map(v => ({ id: uid(), valor: v }));
+  savePulgadas();
 }
 
 function uid() {
@@ -75,6 +102,7 @@ function showView(name) {
   if (name === 'mantenedor') renderItemsManager();
   if (name === 'cotizacion') refreshItemSelector();
   if (name === 'config')     populateEmpresaForm();
+  if (name === 'equipos')    renderEquiposManager();
 }
 
 /* ═══════════════════════════════════════════════════
@@ -91,6 +119,8 @@ function initQuote() {
 
 function newQuote() {
   document.getElementById('cliente-nombre').value      = '';
+  document.getElementById('cliente-marca').value       = '';
+  document.getElementById('cliente-pulgadas').value    = '';
   document.getElementById('quote-observaciones').value = '';
   document.getElementById('check-retiro').checked      = false;
   document.getElementById('check-despacho').checked    = false;
@@ -111,6 +141,24 @@ function refreshItemSelector() {
       `<option value="${it.id}">${escHtml(it.nombre)} — ${fmtCLP(it.precio)}</option>`
     ).join('');
   if (items.find(i => i.id === prev)) sel.value = prev;
+}
+
+function refreshMarcasSelector() {
+  const sel = document.getElementById('cliente-marca');
+  const prev = sel.value;
+  const sorted = [...marcas].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  sel.innerHTML = '<option value="">— Sin especificar —</option>' +
+    sorted.map(m => `<option value="${m.id}">${escHtml(m.nombre)}</option>`).join('');
+  if (marcas.find(m => m.id === prev)) sel.value = prev;
+}
+
+function refreshPulgadasSelector() {
+  const sel = document.getElementById('cliente-pulgadas');
+  const prev = sel.value;
+  const sorted = [...pulgadas].sort((a, b) => parseFloat(a.valor) - parseFloat(b.valor));
+  sel.innerHTML = '<option value="">— Sin especificar —</option>' +
+    sorted.map(p => `<option value="${p.id}">${escHtml(p.valor)}</option>`).join('');
+  if (pulgadas.find(p => p.id === prev)) sel.value = prev;
 }
 
 /* ═══════════════════════════════════════════════════
@@ -348,6 +396,144 @@ function deleteItem(id) {
 }
 
 /* ═══════════════════════════════════════════════════
+   Mantenedor de Equipos (Marcas y Pulgadas)
+═══════════════════════════════════════════════════ */
+function renderEquiposManager() {
+  renderMarcasList();
+  renderPulgadasList();
+}
+
+function renderMarcasList() {
+  const list = document.getElementById('marcas-list');
+  if (!marcas.length) { list.innerHTML = '<p class="empty-msg">No hay marcas registradas.</p>'; return; }
+  const sorted = [...marcas].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  list.innerHTML = sorted.map(m => `
+    <div class="item-row" id="marca-row-${m.id}">
+      <div class="item-info">
+        <span class="item-name">${escHtml(m.nombre)}</span>
+      </div>
+      <div class="item-actions">
+        <button class="btn-icon edit" onclick="startEditMarca('${m.id}')" title="Editar">✏️</button>
+        <button class="btn-icon del"  onclick="deleteMarca('${m.id}')"   title="Eliminar">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPulgadasList() {
+  const list = document.getElementById('pulgadas-list');
+  if (!pulgadas.length) { list.innerHTML = '<p class="empty-msg">No hay medidas registradas.</p>'; return; }
+  const sorted = [...pulgadas].sort((a, b) => parseFloat(a.valor) - parseFloat(b.valor));
+  list.innerHTML = sorted.map(p => `
+    <div class="item-row" id="pulgada-row-${p.id}">
+      <div class="item-info">
+        <span class="item-name">${escHtml(p.valor)}</span>
+      </div>
+      <div class="item-actions">
+        <button class="btn-icon edit" onclick="startEditPulgada('${p.id}')" title="Editar">✏️</button>
+        <button class="btn-icon del"  onclick="deletePulgada('${p.id}')"   title="Eliminar">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addMarca() {
+  const nombre = document.getElementById('new-marca-nombre').value.trim();
+  if (!nombre) { showToast('Ingresa un nombre de marca.', 'error'); return; }
+  marcas.push({ id: uid(), nombre });
+  saveMarcas();
+  renderMarcasList();
+  refreshMarcasSelector();
+  document.getElementById('new-marca-nombre').value = '';
+  document.getElementById('new-marca-nombre').focus();
+  showToast('Marca guardada.', 'info');
+}
+
+function startEditMarca(id) {
+  const m   = marcas.find(m => m.id === id);
+  const row = document.getElementById('marca-row-' + id);
+  row.innerHTML = `
+    <div class="item-edit-row">
+      <input type="text" id="em-${id}" value="${escHtml(m.nombre)}" class="input input-edit-nombre">
+      <div class="edit-actions">
+        <button class="btn btn-primary btn-sm" onclick="saveEditMarca('${id}')">Guardar</button>
+        <button class="btn btn-secondary btn-sm" onclick="renderMarcasList()">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('em-' + id).focus();
+}
+
+function saveEditMarca(id) {
+  const nombre = document.getElementById('em-' + id).value.trim();
+  if (!nombre) { showToast('El nombre no puede estar vacío.', 'error'); return; }
+  const m = marcas.find(m => m.id === id);
+  m.nombre = nombre;
+  saveMarcas();
+  renderMarcasList();
+  refreshMarcasSelector();
+  showToast('Marca actualizada.', 'info');
+}
+
+function deleteMarca(id) {
+  if (!confirm('¿Eliminar esta marca?')) return;
+  marcas = marcas.filter(m => m.id !== id);
+  saveMarcas();
+  renderMarcasList();
+  refreshMarcasSelector();
+  const sel = document.getElementById('cliente-marca');
+  if (sel.value === id) sel.value = '';
+}
+
+function addPulgada() {
+  const valor = document.getElementById('new-pulgada-valor').value.trim();
+  if (!valor) { showToast('Ingresa una medida.', 'error'); return; }
+  pulgadas.push({ id: uid(), valor });
+  savePulgadas();
+  renderPulgadasList();
+  refreshPulgadasSelector();
+  document.getElementById('new-pulgada-valor').value = '';
+  document.getElementById('new-pulgada-valor').focus();
+  showToast('Medida guardada.', 'info');
+}
+
+function startEditPulgada(id) {
+  const p   = pulgadas.find(p => p.id === id);
+  const row = document.getElementById('pulgada-row-' + id);
+  row.innerHTML = `
+    <div class="item-edit-row">
+      <input type="text" id="epul-${id}" value="${escHtml(p.valor)}" class="input input-edit-nombre">
+      <div class="edit-actions">
+        <button class="btn btn-primary btn-sm" onclick="saveEditPulgada('${id}')">Guardar</button>
+        <button class="btn btn-secondary btn-sm" onclick="renderPulgadasList()">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('epul-' + id).focus();
+}
+
+function saveEditPulgada(id) {
+  const valor = document.getElementById('epul-' + id).value.trim();
+  if (!valor) { showToast('La medida no puede estar vacía.', 'error'); return; }
+  const p = pulgadas.find(p => p.id === id);
+  p.valor = valor;
+  savePulgadas();
+  renderPulgadasList();
+  refreshPulgadasSelector();
+  showToast('Medida actualizada.', 'info');
+}
+
+function deletePulgada(id) {
+  if (!confirm('¿Eliminar esta medida?')) return;
+  pulgadas = pulgadas.filter(p => p.id !== id);
+  savePulgadas();
+  renderPulgadasList();
+  refreshPulgadasSelector();
+  const sel = document.getElementById('cliente-pulgadas');
+  if (sel.value === id) sel.value = '';
+}
+
+/* ═══════════════════════════════════════════════════
    Importar / Exportar lista de ítems
 ═══════════════════════════════════════════════════ */
 function exportItems() {
@@ -534,11 +720,22 @@ function downloadPDF() {
   }
   y += 10;
 
-  /* ── Fecha y cliente ── */
+  /* ── Fecha, cliente y equipo ── */
+  const marcaId    = document.getElementById('cliente-marca').value;
+  const pulgadaId  = document.getElementById('cliente-pulgadas').value;
+  const marcaObj   = marcas.find(m => m.id === marcaId);
+  const pulgadaObj = pulgadas.find(p => p.id === pulgadaId);
+  const equipoParts = [marcaObj?.nombre, pulgadaObj?.valor].filter(Boolean);
+
   doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.setTextColor(50, 50, 50);
   doc.text(`Fecha: ${fmtDate(fecha)}`, ML, y);
-  doc.text(`Cliente: ${cliente}`,      ML, y + 7);
-  y += 18;
+  doc.text(`Cliente: ${cliente}`, ML, y + 7);
+  let metaY = y + 7;
+  if (equipoParts.length) {
+    metaY += 7;
+    doc.text(`Equipo: ${equipoParts.join(' ')}`, ML, metaY);
+  }
+  y = metaY + 11;
 
   /* ── Tabla de ítems ── */
   const tableBody = quoteItems.map((qi, i) => [
@@ -630,10 +827,17 @@ function sendWhatsApp() {
   const subtotal    = quoteItems.reduce((s, qi) => s + qi.precio * qi.cantidad, 0);
   const total       = Math.max(0, subtotal + (retiroOn ? pRetiro : 0) + (despachoOn ? pDespacho : 0) - (descuentoOn ? pDescuento : 0));
 
+  const waMarcaId    = document.getElementById('cliente-marca').value;
+  const waPulgadaId  = document.getElementById('cliente-pulgadas').value;
+  const waMarcaObj   = marcas.find(m => m.id === waMarcaId);
+  const waPulgadaObj = pulgadas.find(p => p.id === waPulgadaId);
+  const waEquipoParts = [waMarcaObj?.nombre, waPulgadaObj?.valor].filter(Boolean);
+
   let msg = `*COTIZACIÓN*\n`;
   msg += `Fecha: ${fmtDate(fecha)}\n`;
-  msg += `Cliente: ${cliente}\n\n`;
-  msg += `*Detalle de servicios:*\n`;
+  msg += `Cliente: ${cliente}\n`;
+  if (waEquipoParts.length) msg += `Equipo: ${waEquipoParts.join(' ')}\n`;
+  msg += `\n*Detalle de servicios:*\n`;
 
   quoteItems.forEach((qi, i) => {
     msg += `${i + 1}. ${qi.nombre} x${qi.cantidad} — ${fmtCLP(qi.precio * qi.cantidad)}\n`;

@@ -243,8 +243,16 @@ label.qty-label {
 ═══════════════════════════════════════════════════ */
 .meta-grid {
   display: grid;
-  grid-template-columns: 160px 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
+}
+
+.optional {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 10px;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* ═══════════════════════════════════════════════════

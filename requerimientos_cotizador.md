@@ -1,6 +1,6 @@
 # Sistema de Cotización — Reparación de Equipos Eléctricos
 **Documento de Requerimientos y Casos de Uso**
-Versión 1.0 — Mayo 2026
+Versión 3.0 — Mayo 2026
 
 ---
 
@@ -15,8 +15,9 @@ Aplicación web de página única (SPA) para generar cotizaciones de reparación
 | # | Módulo | Descripción |
 |---|--------|-------------|
 | M1 | Mantenedor de Ítems | CRUD de servicios/reparaciones con nombre y precio |
-| M2 | Creación de Cotización | Selección de ítems, cliente, retiro/despacho, totales |
+| M2 | Creación de Cotización | Selección de ítems, cliente, equipo (marca/pulgadas), retiro/despacho, totales |
 | M3 | Exportación | Generación de PDF imprimible y envío por WhatsApp |
+| M4 | Mantenedor de Equipos | CRUD de marcas y medidas en pulgadas para identificar el equipo cotizado |
 
 ---
 
@@ -35,6 +36,8 @@ Aplicación web de página única (SPA) para generar cotizaciones de reparación
   - Nombre del cliente (texto libre).
   - Fecha (autocompletada con la fecha actual, editable).
   - Número de cotización (autoincremental).
+  - **Marca del equipo** (selector opcional, valores del mantenedor de equipos).
+  - **Pulgadas del equipo** (selector opcional, valores del mantenedor de equipos).
   - Listado de ítems seleccionados del mantenedor con cantidad y precio unitario.
   - Posibilidad de agregar un ítem ad-hoc directamente en la cotización; dicho ítem **se guarda automáticamente en el mantenedor** para uso futuro.
   - Opción de **Retiro a domicilio** (checkbox con precio configurable, por defecto $5.000).
@@ -45,7 +48,15 @@ Aplicación web de página única (SPA) para generar cotizaciones de reparación
 ### RF-03 — Exportación PDF
 - El sistema debe generar un PDF con el detalle completo de la cotización.
 - El PDF debe incluir: número de cotización, fecha, nombre del cliente, tabla de ítems (cantidad, descripción, precio unitario, subtotal por ítem), retiro/despacho si aplica, total, observaciones.
+- Si se seleccionaron marca y/o pulgadas, el PDF debe mostrar la línea **"Equipo: [Marca] [Pulgadas]"** junto a los datos del cliente.
 - El PDF debe ser descargable directamente desde el navegador sin servidor.
+
+### RF-05 — Mantenedor de Equipos (Marcas y Pulgadas)
+- El sistema debe permitir **crear**, **editar** y **eliminar** marcas de equipos (ej: AOC, Samsung, LG).
+- El sistema debe permitir **crear**, **editar** y **eliminar** medidas en pulgadas (ej: 32", 55").
+- Las marcas y medidas deben persistir en `localStorage` (claves `cotizador_marcas` y `cotizador_pulgadas`).
+- Deben existir valores precargados: 7 marcas y 9 medidas comunes.
+- Los listados en el mantenedor y en los selectores de cotización deben mostrarse **ordenados**: marcas en orden alfabético, pulgadas en orden numérico ascendente.
 
 ### RF-04 — Envío por WhatsApp
 - El sistema debe generar un mensaje de texto formateado con el resumen de la cotización.
@@ -178,11 +189,23 @@ Aplicación web de página única (SPA) para generar cotizaciones de reparación
   "precio_despacho": 5000,
   "ultimo_numero_cotizacion": 12
 }
+
+// Clave: "cotizador_marcas"
+[
+  { "id": "uuid", "nombre": "AOC" },
+  { "id": "uuid", "nombre": "Samsung" }
+]
+
+// Clave: "cotizador_pulgadas"
+[
+  { "id": "uuid", "valor": "32\"" },
+  { "id": "uuid", "valor": "55\"" }
+]
 ```
 
 ---
 
-## 7. Ítems Precargados (Seed)
+## 7. Datos Precargados (Seed)
 
 | Descripción | Precio CLP |
 |-------------|-----------|
@@ -197,31 +220,52 @@ Aplicación web de página única (SPA) para generar cotizaciones de reparación
 | Revisión diagnóstico | $5.000 |
 | Mano de obra general | $15.000 |
 
+### Marcas precargadas
+
+AOC, Hisense, LG, Philips, Samsung, Sony, TCL
+
+### Medidas precargadas (pulgadas)
+
+24", 27", 32", 40", 43", 50", 55", 65", 75"
+
 ---
 
 ## 8. Estructura de Vistas
 
 ```
-┌─────────────────────────────────┐
-│  HEADER: Cotizador Técnico      │
-│  [Nueva Cotización] [Mantenedor]│
-└─────────────────────────────────┘
-         │                │
-         ▼                ▼
-  ┌─────────────┐  ┌──────────────────┐
-  │  VISTA:     │  │  VISTA:          │
-  │  Nueva      │  │  Mantenedor      │
-  │  Cotización │  │  de Ítems        │
-  │             │  │                  │
-  │ - Cliente   │  │ - Lista ítems    │
-  │ - Fecha     │  │ - Crear/Editar   │
-  │ - Ítems     │  │ - Eliminar       │
-  │ - Retiro    │  └──────────────────┘
-  │ - Despacho  │
-  │ - Total     │
-  │ [PDF][WA]   │
-  └─────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  HEADER: Cotizador Técnico                                   │
+│  [Nueva Cotización] [Mantenedor de Ítems] [Marcas y Pulgadas]│
+│  [Mi Empresa]                                                │
+└──────────────────────────────────────────────────────────────┘
+         │              │                │
+         ▼              ▼                ▼
+  ┌────────────┐  ┌───────────┐  ┌───────────────────┐
+  │  VISTA:    │  │  VISTA:   │  │  VISTA:           │
+  │  Nueva     │  │  Mant.    │  │  Marcas y         │
+  │  Cotización│  │  de Ítems │  │  Pulgadas         │
+  │            │  │           │  │                   │
+  │ - Cliente  │  │ - Lista   │  │ - Lista marcas    │
+  │ - Fecha    │  │   ítems   │  │ - Crear/Editar    │
+  │ - Marca *  │  │ - Crear/  │  │ - Eliminar        │
+  │ - Pulgadas*│  │   Editar  │  │                   │
+  │ - Ítems    │  │ - Eliminar│  │ - Lista pulgadas  │
+  │ - Retiro   │  └───────────┘  │ - Crear/Editar    │
+  │ - Despacho │                 │ - Eliminar        │
+  │ - Total    │                 └───────────────────┘
+  │ [PDF][WA]  │
+  └────────────┘
+  * campos opcionales
 ```
+
+---
+
+## 9. Historial de Versiones
+
+| Versión | Fecha | Descripción |
+|---------|-------|-------------|
+| 1.0 | Mayo 2026 | Versión inicial: mantenedor de ítems, creación de cotización, exportación PDF y WhatsApp, configuración de empresa. |
+| 3.0 | Mayo 2026 | Se agregan campos opcionales **Marca** y **Pulgadas** en la cotización mediante selectores desplegables. Se incorpora el módulo **Mantenedor de Equipos** (M4) con CRUD completo para marcas y medidas. Si se seleccionan, ambos datos se reflejan en el PDF y en el mensaje de WhatsApp. Los selectores y listas del mantenedor se muestran ordenados: marcas alfabéticamente, pulgadas numéricamente. |
 
 ---
 

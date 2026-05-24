@@ -25,6 +25,7 @@
       <nav class="nav">
         <button id="btn-cotizacion" class="nav-btn active" onclick="showView('cotizacion')">Nueva Cotización</button>
         <button id="btn-mantenedor" class="nav-btn" onclick="showView('mantenedor')">Mantenedor de Ítems</button>
+        <button id="btn-equipos" class="nav-btn" onclick="showView('equipos')">Marcas y Pulgadas</button>
         <button id="btn-config" class="nav-btn" onclick="showView('config')">Mi Empresa</button>
       </nav>
     </div>
@@ -50,6 +51,18 @@
           <div class="form-group">
             <label for="cliente-nombre">Cliente <span class="required">*</span></label>
             <input type="text" id="cliente-nombre" class="input" placeholder="Nombre del cliente">
+          </div>
+          <div class="form-group">
+            <label for="cliente-marca">Marca <span class="optional">(opcional)</span></label>
+            <select id="cliente-marca" class="input">
+              <option value="">— Sin especificar —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="cliente-pulgadas">Pulgadas <span class="optional">(opcional)</span></label>
+            <select id="cliente-pulgadas" class="input">
+              <option value="">— Sin especificar —</option>
+            </select>
           </div>
         </div>
       </div>
@@ -185,6 +198,45 @@
       <div class="card">
         <h3 class="card-title">Ítems registrados</h3>
         <div id="items-list"></div>
+      </div>
+
+    </section>
+
+    <!-- ══════════════════ VISTA: EQUIPOS (MARCAS Y PULGADAS) ══════════════════ -->
+    <section id="view-equipos" class="view">
+
+      <div class="view-header">
+        <h2>Marcas y Pulgadas</h2>
+      </div>
+
+      <!-- Nueva marca -->
+      <div class="card">
+        <h3 class="card-title">Nueva Marca</h3>
+        <div class="new-item-form">
+          <input type="text" id="new-marca-nombre" class="input new-item-nombre" placeholder="Nombre de la marca (ej: AOC, Samsung)">
+          <button class="btn btn-primary" onclick="addMarca()">Guardar Marca</button>
+        </div>
+      </div>
+
+      <!-- Lista de marcas -->
+      <div class="card">
+        <h3 class="card-title">Marcas registradas</h3>
+        <div id="marcas-list"></div>
+      </div>
+
+      <!-- Nueva medida -->
+      <div class="card">
+        <h3 class="card-title">Nueva Medida (pulgadas)</h3>
+        <div class="new-item-form">
+          <input type="text" id="new-pulgada-valor" class="input new-item-nombre" placeholder='Medida en pulgadas (ej: 32", 55")'>
+          <button class="btn btn-primary" onclick="addPulgada()">Guardar Medida</button>
+        </div>
+      </div>
+
+      <!-- Lista de pulgadas -->
+      <div class="card">
+        <h3 class="card-title">Medidas registradas</h3>
+        <div id="pulgadas-list"></div>
       </div>
 
     </section>
